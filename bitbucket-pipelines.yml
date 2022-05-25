@@ -1,0 +1,67 @@
+# This is an example Starter pipeline configuration
+# Use a skeleton to build, test and deploy using manual and parallel steps
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+
+#image: atlassian/default-image:3
+image: microsoft/dotnet:sdk
+
+clone:
+  depth: full              # SonarCloud scanner needs the full history to assign issues properly
+
+definitions:
+  services:
+    docker:
+      memory: 7128 
+  caches:
+    sonar: ~/.sonar/cache  # Caching SonarCloud artifacts will speed up your build
+  steps:
+    - step: &build-test-sonarcloud
+        size: 2x
+        name: Build, test and analyze on SonarCloud
+        caches:
+          - sonar
+        script:
+#          - pipe: sonarsource/sonarcloud-scan:1.4.0
+
+          - export PATH="$PATH:/root/.dotnet/tools"
+
+           # Set SonarQube prerequisites
+          - apt-get update
+          - apt-get install --yes openjdk-8-jre
+          - dotnet tool install --global dotnet-sonarscanner
+          
+          # start scanner
+          - dotnet sonarscanner begin /k:"product_key" /d:"sonar.login=${SONAR_TOKEN}" /o:"organization_key" /v:"${BITBUCKET_COMMIT}" /d:"sonar.host.url=https://sonarcloud.io"
+          
+          # show the code files and folders
+          #- ls -R
+          
+          # Build
+          #- dotnet restore
+          #- dotnet build "./Project/App.sln" -c Release
+
+          # Publish Report to SonarQube
+          - dotnet sonarscanner end /d:"sonar.login=${SONAR_TOKEN}"
+    - step: &check-quality-gate-sonarcloud
+        size: 2x
+        name: Check the Quality Gate on SonarCloud
+        script:
+          - pipe: sonarsource/sonarcloud-quality-gate:0.1.6
+    - step:
+        name: Deploy to test
+        deployment: test
+        # trigger: manual  # Uncomment to make this a manual deployment.
+        script:
+          - echo "Deploying to test environment"
+      
+pipelines:                 # More info here: https://confluence.atlassian.com/bitbucket/configure-bitbucket-pipelines-yml-792298910.html
+  branches:
+    dev:
+      - step: *build-test-sonarcloud
+      - step: *check-quality-gate-sonarcloud
+  pull-requests:
+    '**':
+      - step: *build-test-sonarcloud
+      - step: *check-quality-gate-sonarcloud
+
