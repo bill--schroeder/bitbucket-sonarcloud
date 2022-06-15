@@ -1,4 +1,5 @@
 REM https://docs.sonarcloud.io/advanced-setup/ci-based-analysis/sonarscanner-for-net/
+REM https://docs.sonarqube.org/latest/user-guide/user-token/
 
   
 SET PATH=%PATH%;C:\Apps\SonarScanner\sonar-scanner-msbuild-5.5.3.43281-net46\
